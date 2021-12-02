@@ -4,16 +4,21 @@
 
 ```bash
   go run main.go -h
-  -file string
-        需要上传输的文件
-  -url string
+  -t string
         目标地址
+  -tf string
+        批量测试目标文件
+  -uf string
+        需要上传的文件,默认将写入一句话webshell
 ```
 
 > 测试目标在上传冰蝎shell后无法使用，但godzilla的马是可以的。
 
 ![](img/1.png)
 ![](img/2.png)
+
+批量上传webshell
+![](img/3.png)
 
 ### 声明 
 > 请在受权的测试目标上使用本工具，如果非法使用，责任由使用人自负，与本人无关。
