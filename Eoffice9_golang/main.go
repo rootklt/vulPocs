@@ -42,7 +42,7 @@ func init() {
 	flag.StringVar(&target, "t", "", "目标地址")
 	flag.StringVar(&targetfile, "tf", "", "批量测试目标文件")
 	flag.StringVar(&uploadfile, "uf", "", "需要上传的文件,默认将写入一句话webshell")
-	flag.StringVar(&output, "o", "results.txt", "将结果写到指定的文件中，默认是results.txt")
+	flag.StringVar(&output, "o", "results.txt", "将结果写到指定的文件中")
 	flag.Parse()
 }
 

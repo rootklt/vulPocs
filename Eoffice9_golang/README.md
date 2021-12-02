@@ -4,6 +4,8 @@
 
 ```bash
   go run main.go -h
+  -o string
+        将结果写到指定的文件中 (default "results.txt")
   -t string
         目标地址
   -tf string
