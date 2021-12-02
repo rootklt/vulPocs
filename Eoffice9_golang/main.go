@@ -225,12 +225,17 @@ func checkUploadFile(u string, sn string) {
 
 func saveResults(filename string, res string) {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
-		f, err := os.OpenFile(filename, os.O_APPEND, 0666)
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Fatalln("不能打开文件：", filename)
 		}
 		defer f.Close()
-		io.WriteString(f, res)
+		n, err := io.WriteString(f, res+"\n")
+		if n == 0 && err == nil {
+			log.Println("保存结果成功..")
+			return
+		}
+		log.Println("保存结果失败..")
 		return
 	}
 
@@ -240,6 +245,6 @@ func saveResults(filename string, res string) {
 		return
 	}
 	defer f.Close()
-	io.WriteString(f, res)
+	io.WriteString(f, res+"\n")
 
 }
