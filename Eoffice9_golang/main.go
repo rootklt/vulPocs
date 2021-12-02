@@ -44,10 +44,7 @@ func init() {
 }
 
 func main() {
-	/*
-		fofa语法：app="泛微-EOffice"
-		zoomeye: app:"泛微协同办公标准产品EOffice"
-	*/
+
 	poc()
 }
 
